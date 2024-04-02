@@ -1,12 +1,23 @@
 #include "crypto.h"
 #include "util.h"
 
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
+
 #include <mbedtls/entropy.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/rsa.h>
 #include <mbedtls/aes.h>
 #include <mbedtls/cmac.h>
 #include <mbedtls/md.h>
+
+// MS
+#ifndef MBEDTLS_RSA_PUBLIC
+#define MBEDTLS_RSA_PUBLIC      0 /**< Request private key operation. */
+#endif
+
+#ifndef MBEDTLS_RSA_PRIVATE
+#define MBEDTLS_RSA_PRIVATE     1 /**< Request public key operation. */
+#endif
 
 struct encdec_device {
 	mbedtls_aes_xts_context enc_ctx;
@@ -75,7 +86,8 @@ int rsa_public(const struct rsa_keyset* keyset, const void* in, void* out) {
 
 	memset(&ctx, 0, sizeof(ctx));
 
-	mbedtls_rsa_init(&ctx, 0, 0);
+    mbedtls_rsa_init(&ctx); // MS, 0, 0);
+    mbedtls_rsa_set_padding(&ctx, 0, MBEDTLS_MD_NONE/*0*/);
 	if (!setup_rsa_keyset(&ctx, keyset, 0)) {
 		warning("Invalid RSA keyset.");
 		goto error;
@@ -109,7 +121,8 @@ int rsa_private(const struct rsa_keyset* keyset, const void* in, void* out) {
 
 	memset(&ctx, 0, sizeof(ctx));
 
-	mbedtls_rsa_init(&ctx, 0, 0);
+  mbedtls_rsa_init(&ctx); // MS, 0, 0);
+  mbedtls_rsa_set_padding(&ctx, 0, MBEDTLS_MD_NONE/*0*/);
 	if (!setup_rsa_keyset(&ctx, keyset, 0)) {
 		warning("Invalid RSA keyset.");
 		goto error;
@@ -208,7 +221,8 @@ int rsa_pkcsv15_decrypt(const struct rsa_keyset* keyset, const void* in, size_t 
 
 	memset(&ctx, 0, sizeof(ctx));
 
-	mbedtls_rsa_init(&ctx, MBEDTLS_RSA_PKCS_V15, 0);
+  mbedtls_rsa_init(&ctx); // MS, MBEDTLS_RSA_PKCS_V15, 0);  
+//  mbedtls_rsa_set_padding(&ctx, MBEDTLS_RSA_PKCS_V15, 0);
 
 	if (!setup_rsa_keyset(&ctx, keyset, is_private)) {
 		warning("Invalid RSA keyset.");
@@ -250,7 +264,8 @@ int rsa_pkcsv15_verify_by_hash(const struct rsa_keyset* keyset, uint8_t* hash, s
 
 	memset(&ctx, 0, sizeof(ctx));
 
-	mbedtls_rsa_init(&ctx, MBEDTLS_RSA_PKCS_V15, 0);
+  mbedtls_rsa_init(&ctx); // MS, MBEDTLS_RSA_PKCS_V15, 0);
+//  mbedtls_rsa_set_padding(&ctx, MBEDTLS_RSA_PKCS_V15, 0);
 	if (!setup_rsa_keyset(&ctx, keyset, 0)) {
 		warning("Invalid RSA keyset.");
 		goto error;
@@ -261,7 +276,8 @@ int rsa_pkcsv15_verify_by_hash(const struct rsa_keyset* keyset, uint8_t* hash, s
 		goto error;
 	}
 
-	ret = mbedtls_rsa_pkcs1_verify(&ctx, &mbedtls_ctr_drbg_random, &s_ctr_drbg, MBEDTLS_RSA_PUBLIC, MBEDTLS_MD_SHA256, (unsigned int)hash_size, hash, (const uint8_t*)signature);
+//  ret = mbedtls_rsa_pkcs1_verify(&ctx, &mbedtls_ctr_drbg_random, &s_ctr_drbg, MBEDTLS_RSA_PUBLIC, MBEDTLS_MD_SHA256, (unsigned int)hash_size, hash, (const uint8_t*)signature);
+  ret = mbedtls_rsa_pkcs1_verify(&ctx,/* &mbedtls_ctr_drbg_random, &s_ctr_drbg, MBEDTLS_RSA_PUBLIC,*/ MBEDTLS_MD_SHA256, (unsigned int)hash_size, hash, (const uint8_t*)signature);
 	if (ret != 0) {
 		warning("Unable to verify RSA data (error: 0x%08" PRIX32 ").", ret);
 		goto error;

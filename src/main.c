@@ -30,6 +30,10 @@
 #	define ARG_OPT optional_argument
 #endif /* _WIN32 */
 
+#ifdef _WIN32
+#include <libloaderapi.h>
+#endif
+
 #include "pkg.h"
 #include "self.h"
 #include "gp4.h"
@@ -1818,7 +1822,10 @@ int main(int argc, char* argv[]) {
 
 	char *program_path = argv[0];
 	#ifdef _WIN32
-	_get_pgmptr(&program_path);
+  char bProgram_path[MAX_PATH];
+  GetModuleFileNameA(0, &bProgram_path, MAX_PATH); 
+  program_path = bProgram_path;
+	//_get_pgmptr(&program_path);
 	#endif
 	path_get_directory(program_directory, sizeof(program_directory), program_path);
 	snprintf(config_file_path, sizeof(config_file_path), "%s%s%s", program_directory, (*program_directory != '\0') ? "/" : "", CONFIG_FILE);
@@ -1829,8 +1836,11 @@ int main(int argc, char* argv[]) {
 	if (!keymgr_initialize(config_file_path))
 		error("Unable to initialize key manager.");
 
-	if (!parse_args(argc, argv))
+	if (!parse_args(argc, argv)) {
+		show_version();
+		show_usage(argv);
 		exit(1);
+	}
 
 	any_cmd = 0;
 	any_cmd |= s_cmd_info;

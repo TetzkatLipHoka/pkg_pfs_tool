@@ -749,6 +749,11 @@ static int setup_keyset_by_image_key(struct keymgr_title_keyset* keyset, struct 
 		g_ekpfs_obf_key_12,
 		g_ekpfs_obf_key_13,
 		g_ekpfs_obf_key_14,
+    g_ekpfs_obf_key_15,
+    g_ekpfs_obf_key_16,
+    g_ekpfs_obf_key_17,
+    g_ekpfs_obf_key_18,
+    g_ekpfs_obf_key_19,
 	};
 #endif
 	uint8_t* data;

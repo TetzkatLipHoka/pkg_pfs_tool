@@ -1449,7 +1449,7 @@ done:
 		}
 
 		if (!s_no_hash_recalc) {
-			entry_data = pkg_locate_entry_data(s_pkg, PKG_ENTRY_ID__PLAYGO_CHUNK_SHA, &entry_size);
+			entry_data = pkg_locate_entry_data(s_pkg, PKG_ENTRY_ID__PLAYGO_CHUNK_SHA, NULL, &entry_size);
 			if (entry_data) {
 				entry_data = map->data + (entry_data - s_pkg->map->data) + PKG_PLAYGO_CHUNK_HASH_TABLE_OFFSET;
 				playgo_chunk_count = s_pkg->pfs_image_size / PKG_PLAYGO_PFS_CHUNK_SIZE;

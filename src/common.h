@@ -138,6 +138,6 @@ enum cb_result {
 
 #define CONFIG_FILE "config.ini"
 
-//#define ENABLE_REPACK_SUPPORT
+#define ENABLE_REPACK_SUPPORT
 #define ENABLE_EKC_KEYGEN
 #define ENABLE_SD_KEYGEN

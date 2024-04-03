@@ -1,12 +1,3 @@
-[submodule "mbedtls"]
-	path = thirdparty/mbedtls
-	url = https://github.com/Mbed-TLS/mbedtls
-[submodule "uthash"]
-	path = thirdparty/uthash
-	url = https://github.com/troydhanson/uthash
-[submodule "zlib"]
-	path = thirdparty/zlib
-	url = https://github.com/madler/zlib
 [submodule "thirdparty/mbedtls"]
 	path = thirdparty/mbedtls
 	url = https://github.com/Mbed-TLS/mbedtls

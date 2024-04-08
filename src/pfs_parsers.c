@@ -1,10 +1,18 @@
 #include "pfs.h"
 #include "util.h"
+#include "sfo.h"
 
 struct pfs_parse_directory_cb_args {
 	char parent_directory[PATH_MAX];
 	pfs_enum_user_root_directory_cb cb;
 	void* arg;
+};
+
+struct pfs_info_user_root_directory_cb_args {
+	unsigned char list;
+	unsigned char sfo_dump;
+	unsigned char backport;
+	const char* sdk_version;
 };
 
 static enum cb_result pfs_parse_super_root_dir_cb(void* arg, struct pfs* pfs, pfs_ino ino, enum pfs_entry_type type, const char* name) {
@@ -164,6 +172,83 @@ error:
 	return status;
 }
 
+static enum cb_result pfs_info_user_root_directory_cb(void* arg, struct pfs* pfs, pfs_ino ino, enum pfs_entry_type type, const char* path, uint64_t size, uint32_t flags) {
+    struct pfs_file_context* file = NULL;
+	struct pfs_info_user_root_directory_cb_args* cbarg = arg;	
+	uint8_t* data;
+    struct sfo* sfo = NULL;
+	const char* tmp_path = path;
+
+	assert(pfs != NULL);
+	assert(path != NULL);
+
+	UNUSED(arg);
+	UNUSED(pfs);
+	UNUSED(ino);
+	UNUSED(type);
+	UNUSED(size);
+	UNUSED(flags);
+
+	while (*tmp_path == '/')
+		++tmp_path;
+	if (*tmp_path == '\0')
+		tmp_path = path;
+
+	if (type == PFS_ENTRY_FILE) {
+		if ((strcmp(tmp_path, "sce_sys/param.sfo") == 0) && cbarg->sfo_dump) {
+			file = pfs_get_file(pfs, ino);
+
+			data = (uint8_t*)malloc(file->file_size);
+			if (!data)
+				goto error;
+			memset(data, 0, file->file_size);
+
+			if (!pfs_file_read(file, 0, data, file->file_size))
+				goto error;			
+
+			sfo = sfo_alloc();
+			if (!sfo) {
+				warning("Unable to allocate memory for system file object.");
+				goto error;
+			}
+			if (!sfo_load_from_memory(sfo, data, file->file_size)) {
+				warning("Unable to load system file object.");
+				goto error;
+			}
+			if (cbarg->backport) {
+				sfo_backport(sfo, cbarg->sdk_version);
+			}
+			sfo_dump(sfo);
+
+			sfo_free(sfo);
+			sfo = NULL;
+		}
+
+		if (cbarg->list) 
+			info("%s (size: 0x%" PRIX64 ")", tmp_path, size);
+	}
+	else if (type == PFS_ENTRY_DIRECTORY) {
+		if (cbarg->list) 
+			info("%s/", tmp_path);
+	}
+	else {
+		if (cbarg->list) 
+			info("%s", tmp_path);
+	}
+
+done:
+	return CB_RESULT_CONTINUE;
+
+error:
+	if (sfo)
+		sfo_free(sfo);
+
+	if (file)
+		pfs_free_file(file);		
+
+	goto done;
+}
+
 static enum cb_result pfs_list_user_root_directory_cb(void* arg, struct pfs* pfs, pfs_ino ino, enum pfs_entry_type type, const char* path, uint64_t size, uint32_t flags) {
 	const char* tmp_path = path;
 
@@ -192,9 +277,19 @@ static enum cb_result pfs_list_user_root_directory_cb(void* arg, struct pfs* pfs
 	return CB_RESULT_CONTINUE;
 }
 
+int pfs_info(struct pfs* pfs, unsigned char list, unsigned char dump_sfo, unsigned char backport, char* sdk_version ) {
+	assert(pfs != NULL);
+	struct pfs_info_user_root_directory_cb_args args;
+
+	args.list = list;
+	args.sfo_dump = dump_sfo;
+	args.backport = backport;
+	args.sdk_version = sdk_version;
+    return pfs_enum_user_root_directory(pfs, &pfs_info_user_root_directory_cb, &args);
+}
+
 int pfs_list_user_root_directory(struct pfs* pfs) {
 	assert(pfs != NULL);
 
 	return pfs_enum_user_root_directory(pfs, &pfs_list_user_root_directory_cb, NULL);
 }
-

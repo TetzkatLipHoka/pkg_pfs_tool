@@ -90,6 +90,8 @@ static int s_opt_no_icv_check_flag = 0;
 static int s_opt_no_hash_recalc_flag = 0;
 static int s_opt_no_elf_repack_flag = 0;
 #endif
+static int s_opt_backport_flag = 0;
+static int s_opt_sdk_version_flag = 0;
 static int s_opt_dump_sfo_flag = 0;
 static int s_opt_dump_playgo_flag = 0;
 static int s_opt_dump_final_keys_flag = 0;
@@ -127,6 +129,8 @@ static int s_no_icv_check = -1;
 static int s_no_hash_recalc = 0;
 static int s_no_elf_repack = 0;
 #endif
+static int s_backport = 0;
+static char* s_sdk_version = NULL;
 static int s_dump_sfo = 0;
 static int s_dump_playgo = 0;
 static int s_dump_final_keys = 0;
@@ -502,12 +506,23 @@ error:
 	return ret;
 }
 
+static int pfs_info_handler(void* arg) {
+	assert(s_pfs != NULL);
+
+	UNUSED(arg);
+
+	if (!pfs_info(s_pfs, 0, s_dump_sfo, s_backport, s_sdk_version))
+		error("Unable to list entries from PFS file: %s", s_input_file_path);
+
+    return 0;		
+}
+
 static int pfs_list_handler(void* arg) {
 	assert(s_pfs != NULL);
 
 	UNUSED(arg);
 
-	if (!pfs_list_user_root_directory(s_pfs))
+    if (!pfs_info(s_pfs, 1, s_dump_sfo, s_backport, s_sdk_version))
 		error("Unable to list entries from PFS file: %s", s_input_file_path);
 
 	return 0;
@@ -606,7 +621,7 @@ static int pfs_unpack_handler(void* arg) {
 				data = map->data + pfs_block_no_to_offset(pfs, blocks[0]);
 
 				for (i = 0; i < block_count; ++i) {
-					printf("%ld ", blocks[i]);
+					printf("%llu ", blocks[i]);
 				}
 				printf("\n");
 
@@ -1081,6 +1096,9 @@ static int pkg_info_handler(void* arg) {
 				warning("Unable to load system file object.");
 				goto error;
 			}
+			if (s_backport) {
+  				sfo_backport(sfo, s_sdk_version); // MS everywhere on extract
+			}
 			sfo_dump(sfo);
 
 			sfo_free(sfo);
@@ -1527,6 +1545,8 @@ static int parse_args(int argc, char* argv[]) {
 		{ "no-hash-recalc", ARG_NONE, &s_opt_no_hash_recalc_flag, 1 },
 		{ "no-elf-repack", ARG_NONE, &s_opt_no_elf_repack_flag, 1 },
 #endif
+		{ "backport", ARG_NONE, &s_opt_backport_flag, 1 },
+        { "sdk-version", ARG_REQ, &s_opt_sdk_version_flag, 1 },		
 		{ "dump-sfo", ARG_NONE, &s_opt_dump_sfo_flag, 1 },
 		{ "dump-playgo", ARG_NONE, &s_opt_dump_playgo_flag, 1 },
 		{ "dump-final-keys", ARG_NONE, &s_opt_dump_final_keys_flag, 1 },
@@ -1696,6 +1716,18 @@ static int parse_args(int argc, char* argv[]) {
 					s_dump_sfo = 1;
 					s_opt_dump_sfo_flag = 0;
 				}
+
+				if (s_opt_backport_flag) {
+					s_backport = 1;
+					s_opt_backport_flag = 0;
+				}
+				if (s_opt_sdk_version_flag) {
+					s_opt_sdk_version_flag = 0;
+					s_sdk_version = strdup(optarg);
+					if (strlen(s_sdk_version) != 8)
+						error("Invalid SDK-Format.");					
+				}
+
 				if (s_opt_dump_playgo_flag) {
 					s_dump_playgo = 1;
 					s_opt_dump_playgo_flag = 0;
@@ -1822,9 +1854,9 @@ int main(int argc, char* argv[]) {
 
 	char *program_path = argv[0];
 	#ifdef _WIN32
-  char bProgram_path[MAX_PATH];
-  GetModuleFileNameA(0, &bProgram_path, MAX_PATH); 
-  program_path = bProgram_path;
+	char bProgram_path[MAX_PATH];
+	GetModuleFileNameA(0, (LPSTR)&bProgram_path, MAX_PATH); 
+	program_path = bProgram_path;
 	//_get_pgmptr(&program_path);
 	#endif
 	path_get_directory(program_directory, sizeof(program_directory), program_path);
@@ -1907,6 +1939,8 @@ input_file_ok:
 				ret = process_pkg(&pkg_repack_handler) == 0;
 #endif
 		} else {
+			if (s_cmd_info)
+				ret = process_pfs(&pfs_info_handler) != 0;			
 			if (s_cmd_list)
 				ret = process_pfs(&pfs_list_handler) != 0;
 			else if (s_cmd_unpack)
@@ -1975,6 +2009,8 @@ static void show_usage(char* argv[]) {
 	printf("  --no-hash-recalc                                      Skip recalculation of hashes on repacking\n");
 	printf("  --no-elf-repack                                       Skip ELFs repacking\n");
 #endif
+	printf("  --backport                                            Downgrade SFO SDK Version\n");
+	printf("  --sdk-version                                         Use specific SDK Version for backport\n");
 	printf("  --dump-sfo                                            Dump SFO structure from PKG file\n");
 	printf("  --dump-playgo                                         Dump Playgo structure from PKG file\n");
 #if defined(ENABLE_EKC_KEYGEN)
@@ -2024,7 +2060,8 @@ static void cleanup(void) {
 		free(s_gp4_file);
 	if (s_file_paths)
 		utarray_free(s_file_paths);
-
+	if (s_sdk_version)
+		free(s_sdk_version);
 	if (s_input_file_path)
 		free(s_input_file_path);
 #if defined(ENABLE_REPACK_SUPPORT)

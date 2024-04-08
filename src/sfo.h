@@ -31,3 +31,4 @@ int sfo_load_from_memory(struct sfo* sfo, const void* data, size_t data_size);
 struct sfo_entry* sfo_find_entry(struct sfo* sfo, const char* key);
 
 void sfo_dump(struct sfo* sfo);
+int sfo_backport(struct sfo* sfo, const char* SDK_Version);

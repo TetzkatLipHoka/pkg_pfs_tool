@@ -247,3 +247,48 @@ void sfo_dump(struct sfo* sfo) {
 		++index;
 	}
 }
+
+const char* SFO_KEY_PUBTOOLINFO = "PUBTOOLINFO";
+const char* SFO_KEY_PUBTOOLINFO_SDK_VER = "sdk_ver=";
+const char* SFO_KEY_PUBTOOLINFO_SDK_VER_DEFAULT = "05050000";
+
+int sfo_backport(struct sfo* sfo, const char* SDK_Version) {
+	assert(sfo != NULL);
+	struct sfo_entry* entry; 
+	const char* sdk_Version;   
+	if (!SDK_Version) { sdk_Version = SFO_KEY_PUBTOOLINFO_SDK_VER_DEFAULT; }
+	else { sdk_Version = SDK_Version; }
+
+	DL_FOREACH(sfo->entries, entry) {
+		if (strcmp(entry->key, SFO_KEY_PUBTOOLINFO) == 0) {
+  			if (!entry->value) { return -4; }
+			if (entry->format != SFO_FORMAT_STRING) { return -3; }
+			char *val = strstr((char*)entry->value, SFO_KEY_PUBTOOLINFO_SDK_VER);
+			if(!val) { return -2; }
+			val += strlen(SFO_KEY_PUBTOOLINFO_SDK_VER);
+
+			char ccur[8];
+			memcpy(ccur, val, 8);
+			uint64_t cur = strtoull(ccur, NULL, 10);
+			uint64_t new = strtoull(sdk_Version, NULL, 10);
+			if ( new > cur ) { return 1; }
+
+			memcpy(val, sdk_Version, strlen(sdk_Version));
+		}
+		else if (strcmp(entry->key, "SYSTEM_VER") == 0) {
+			if (!entry->value) { return -1; }
+			unsigned int verI[4] = { 0x07, 0x00, 0x05, 0x05 };
+			char ver[4];
+
+			size_t j = (strlen(sdk_Version) / 2);
+			for (size_t i = 0; i < (strlen(sdk_Version) / 2); i++) {
+				j--;
+				sscanf(sdk_Version + 2*i, "%02x", &verI[j]);
+				ver[j] = verI[j];
+			}
+			memcpy(entry->value, ver, entry->size);
+		}
+	}
+
+  return 0;
+}

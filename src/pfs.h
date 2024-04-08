@@ -499,6 +499,7 @@ int pfs_parse_super_root_directory(struct pfs* pfs);
 typedef enum cb_result (*pfs_enum_user_root_directory_cb)(void* arg, struct pfs* pfs, pfs_ino ino, enum pfs_entry_type type, const char* path, uint64_t size, uint32_t flags);
 int pfs_enum_user_root_directory(struct pfs* pfs, pfs_enum_user_root_directory_cb cb, void* arg);
 
+int pfs_info(struct pfs* pfs, unsigned char list, unsigned char dump_sfo, unsigned char backport, char* sdk_version);
 int pfs_list_user_root_directory(struct pfs* pfs);
 
 #if defined(ENABLE_SD_KEYGEN)
